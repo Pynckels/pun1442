@@ -1,0 +1,244 @@
+#! /usr/bin/env python3
+
+# Copyright 2025 Filip Pynckels
+# See README.md at https://github.com/Pynckels/pun1442
+
+# Acknowledgement
+# IBM font     : https://github.com/Pynckels/prt1403/fonts/IBMPlexMono-Regular.license
+# Punched Cards: https://homepage.divms.uiowa.edu/~jones/cards/collection/i-onefield.shtml#CDC5081
+
+from fpdf            import FPDF
+
+import argparse
+import base64
+import lzma
+import os
+import sys
+
+#------------------------------------------------------------------------------------------
+
+__VERSION__  = '1.0.pre-release'
+
+PATH         = os.path.dirname(os.path.abspath(__file__))
+
+FONT         = PATH + '/pun1442.font.ttf'                           # IBMPlexMono-Regular font (see license)
+
+BEIGE        = PATH + '/pun1442.card.salmon.jpg'                    # Punch card backgrounds
+BLUE         = PATH + '/pun1442.card.blue.jpg'
+GREEN        = PATH + '/pun1442.card.green.jpg'
+PINK         = PATH + '/pun1442.card.pink.jpg'
+YELLOW       = PATH + '/pun1442.card.gold.jpg'
+
+SIZE         =  [531, 243]                                          # 7⅜ inch x 3¼ inch, 80 columns, 12 lines
+
+                                                                    # Puncheable characters (EBCD character set)
+CHARS = ' &-0123456789ABCDEFGHIJKLMNOPQR/STUVWXYZ:#@' + "'" + '="[.<(+|]$*);^' + '\\' + ',%_>?'
+
+                                                                    # Holes corresponding with character set
+HOLES = [ [] ]                                                      # space (no holes)
+HOLES.extend( [ [r]        for r in range(-2,10)] )                 # & - 0 1 2 3 4 5 6 7 8 9
+HOLES.extend( [ [-2, r]    for r in range( 1,10)] )                 # A B C D E F G H I
+HOLES.extend( [ [-1, r]    for r in range( 1,10)] )                 # J K L M N O P Q R
+HOLES.extend( [ [ 0, r]    for r in range( 1,10)] )                 # / S T U V W X Y Z
+HOLES.extend( [ [ r, 8]    for r in range( 2,8)] )                  # : # @ ' = "
+HOLES.extend( [ [-2, r, 8] for r in range( 2,8)] )                  # [ . < ( + |
+HOLES.extend( [ [-1, r, 8] for r in range( 2,8)] )                  # ] $ * ) ; ^
+HOLES.extend( [ [ 0, r, 8] for r in range( 2,8)] )                  # \ , % _ > ?
+
+#------------------------------------------------------------------------------------------
+
+def pun1442_draw_card(pdf, text, card):
+
+    '''
+    Draw a single line of text to a single punched card.
+    '''
+
+    text = text[:80]                                                # Clip text to maximum length 80
+
+    pdf.add_page()                                                  # Create new page
+    pdf.set_margins(0, 0, 0)
+    pdf.set_auto_page_break(True, margin = 0.0)
+
+    pdf.image(card, x=0, y=0, w=pdf.w, h=pdf.h)                     # Draw page background
+
+    pdf.text(18.4, 14, text)
+
+    col = 1                                                         # Punch at most 80 characters
+    for ch in text:
+        pun1442_draw_char(pdf, ch, col)
+        col += 1
+        if 80 < col: break
+
+    return
+
+#------------------------------------------------------------------------------------------
+
+def pun1442_draw_char(pdf, ch, col):
+
+    '''
+    Draw the holes for one character in the given column
+    '''
+
+    if ch.islower():
+        ch = ch.upper()
+
+    if ch in CHARS:
+        idx = CHARS.index(ch)
+    else:
+        idx = 0                                                     # Punch no holes (space)
+
+    for row in HOLES[idx]:                                          # Punch the necessary holes
+        pun1442_draw_hole(pdf, col, row)
+
+    return
+
+#------------------------------------------------------------------------------------------
+
+def pun1442_draw_hole(pdf, col, row):
+
+    '''
+    Draw a perforated hole
+    Must be called after prt1403_draw_form in order to 'perforate' the card
+
+    col : 1 .. 80
+    row : -2 .. 9
+    '''
+
+    X0 = 18.42                                                      # Experimentally found constant
+    Y0 = 54.00
+    DX =  6.21
+    DY = 18.29
+    H  =  7.10
+    W  =  3.00
+
+    pdf.set_draw_color(200, 200, 200)                               # Hole settings
+    pdf.set_fill_color(220, 220, 220)
+    pdf.set_line_width(0.5)
+
+    x = X0 + (col-1) * DX                                           # Transform (col,row) to (x,y)
+    y = Y0 + row * DY
+    pdf.rect(x, y, W, H, "FD")                                      # Punch hole
+
+    return
+
+#------------------------------------------------------------------------------------------
+
+def pun1442_punch(
+    inFile          ,
+    outFile         ,
+    card    = BEIGE
+    ):
+
+    '''
+    Punch the text in inFile to cards in pdf pages.
+    Add the content of the cards in ASCII as comment to the pdf file
+    '''
+
+    if inFile == 'stdin':                                           # Input from stdin
+        lines = sys.stdin.buffer.readlines()
+    else:                                                           # Input from file
+        with open(inFile, 'rb') as inf:
+            lines = inf.readlines()
+
+    pdf = FPDF(orientation='P', unit='pt', format=SIZE)             # Create fpdf environment
+
+    pdf.add_font('pun1442Font', '', FONT)                           # Add included font to fpdf environment
+    pdf.set_font('pun1442Font')                                     # Activate and configure pun1442 font
+    pdf.set_font_size(10.3)
+    pdf.set_text_color(0, 0, 0)
+
+    cards = []                                                      # List with ASCII values of cards
+    for line in lines:
+        text = line.decode('utf-8')                                 # Convert bytes to string
+        text = text.rstrip()                                        # Strip trailing whitespace and '\n'
+        cards.append(b'%% CARD - ' + base64.b64encode(text.encode('utf-8')))
+        pun1442_draw_card(pdf, text, card)
+
+    lines = bytes(pdf.output()).split(b'\n')                        # Get pdf as list of bytes strings
+    lines[1:1] = cards                                              # Insert cards at position 1 (after first line)
+    outBytes = b'\n'.join(lines) + b'\n'                            # Join lines with '\n'
+
+    if outFile == 'stdout':                                         # Write altered pdf to stdout
+        sys.stdout.buffer.write(outBytes)
+    else:                                                           # Write altered pdf to file
+        with open(outFile, 'wb') as pdf:
+            pdf.write(outBytes)
+
+    return
+
+#------------------------------------------------------------------------------------------
+
+def main():
+
+    '''
+    Check arguments and punch cards with the given options
+    '''
+
+    def infile_validator(file_path):
+        ''' Check if the file is UTF-8 encoded. Exception for stdin.'''
+        if file_path == '-':
+            return file_path
+        progName  = os.path.basename(__file__)
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                file.read()
+            return file_path                                        # Return the file path if it's a valid UTF-8 file
+        except UnicodeDecodeError:
+            print(parser.format_usage().strip())
+            print(f'{progName}: error: The file {file_path} is not a valid UTF-8 text file.')
+            quit()
+        except FileNotFoundError:
+            print(parser.format_usage().strip())
+            print(f'{progName}: error: The file {file_path} does not exist.')
+            quit()
+
+    def outfile_validator(file_path, overwrite=False):
+        ''' Check if the output file path is valid and does not exist, unless overwrite is True. Exception for stdout '''
+        if file_path == '-':
+            return file_path
+        overwrite = args.overwrite
+        progName  = os.path.basename(__file__)
+        directory = os.path.dirname(file_path)                      # Check if the directory exists
+        if not os.path.isdir(directory) and directory != '':
+            print(parser.format_usage().strip())
+            print(f'{progName}: error: The directory {directory} does not exist.')
+            quit()
+        if os.path.exists(file_path) and not overwrite:             # Check if the file exists and overwrite is not allowed
+            print(parser.format_usage().strip())
+            print(f'{progName}: error: The file {file_path} already exists. Use -y to overwrite.')
+            quit()
+        return file_path                                            # Return the output file path if it's valid
+
+    parser = argparse.ArgumentParser(description='Print a text file to PDF in IBM 1403 retro style')
+
+    parser.add_argument('infile',            metavar='<Input file>',  type=infile_validator,                                                   help='File to process or - for stdin.')
+    parser.add_argument('-c', '--color',                              choices=['BEIGE', 'BLUE', 'GREEN', 'PINK', 'YELLOW'],   default='BEIGE', help='Color of cards.')
+    parser.add_argument('-o', '--outfile',   metavar='<Output file>', type=str,                                     default='pun1442.pdf',     help='Output file name or - for stdout.')
+    parser.add_argument('-v', '--version',   action='version',        version='%(prog)s (version {version})'.format(version=__VERSION__),      help='Show program version and exit.')
+    parser.add_argument('-y', '--overwrite',                          action='store_true',                          default=False,             help='Overwrite output file.')
+
+    args = parser.parse_args()
+    args.outfile = outfile_validator(args.outfile, overwrite=args.overwrite)
+
+    if args.infile == '-':                                          # Normalize input file name
+        inFile = 'stdin'
+    else:
+        inFile = args.infile
+
+    if args.outfile == '-':                                         # Normalize output file name
+        outFile = 'stdout'
+    else:
+        outFile = args.outfile
+
+    pun1442_punch(                                                  # Hit the road...
+        inFile                          ,
+        outFile                         ,
+        card    = globals()[args.color]
+    )
+
+    return
+
+#------------------------------------------------------------------------------------------
+
+if __name__ == '__main__':
+    main()                                                          # Do not run if script is imported as a module
