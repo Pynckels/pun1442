@@ -1,6 +1,6 @@
 # pun1442
 
-Punch a text file to PDF in IBM 1442 retro style
+Punch a text file to PDF in IBM 1442 retro style. The punched cards in the PDF file can be read in again with the project rdr1442.
 
 ![Fortran source code example](tests/testOut/test1.png)
 

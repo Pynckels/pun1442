@@ -20,13 +20,13 @@ __VERSION__  = '1.0.pre-release'
 
 PATH         = os.path.dirname(os.path.abspath(__file__))
 
-FONT         = PATH + '/pun1442.font.ttf'                           # IBMPlexMono-Regular font (see license)
+FONT         = PATH + '/fonts/IBMPlexMono-Regular.ttf'              # IBMPlexMono-Regular font (see license)
 
-BEIGE        = PATH + '/pun1442.card.salmon.jpg'                    # Punch card backgrounds
-BLUE         = PATH + '/pun1442.card.blue.jpg'
-GREEN        = PATH + '/pun1442.card.green.jpg'
-PINK         = PATH + '/pun1442.card.pink.jpg'
-YELLOW       = PATH + '/pun1442.card.gold.jpg'
+BEIGE        = PATH + '/cards/pun1442.card.salmon.jpg'              # Punch card backgrounds
+BLUE         = PATH + '/cards/pun1442.card.blue.jpg'
+GREEN        = PATH + '/cards/pun1442.card.green.jpg'
+PINK         = PATH + '/cards/pun1442.card.pink.jpg'
+YELLOW       = PATH + '/cards/pun1442.card.gold.jpg'
 
 SIZE         =  [531, 243]                                          # 7⅜ inch x 3¼ inch, 80 columns, 12 lines
 
