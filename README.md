@@ -27,6 +27,30 @@ The easiest way to install pun1442 is as follows.
 
 Contact me and we'll cook something up together.
 
+### Syntax
+
+To get the command line syntax the -h and the --help option can be used.
+
+    pun1442 --help
+
+This results in the following information.
+
+    usage: pun1442 [-h] [-c {BEIGE,BLUE,GREEN,PINK,YELLOW}] [-o <Output file>] [-v] [-y] <Input file>
+
+    Print a text file to PDF in IBM 1403 retro style
+
+    positional arguments:
+      <Input file>          File to process or - for stdin.
+
+    options:
+      -h, --help            show this help message and exit
+      -c, --color {BEIGE,BLUE,GREEN,PINK,YELLOW}
+                            Color of cards.
+      -o, --outfile <Output file>
+                            Output file name or - for stdout.
+      -v, --version         Show program version and exit.
+      -y, --overwrite       Overwrite output file.
+
 ### License
 
 Copyright (c) 2025 by Filip Pynckels
