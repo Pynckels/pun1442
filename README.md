@@ -1,6 +1,6 @@
 # pun1442
 
-Punch a text file to PDF or read a PDF to text file in IBM 1442 retro style
+Punch a text file to PDF in IBM 1442 retro style
 
 ![Fortran source code example](tests/testOut/test1.png)
 
@@ -31,7 +31,7 @@ Contact me and we'll cook something up together.
 
 To get the command line syntax the -h and the --help option can be used.
 
-    pun1442 --help
+    ~/pun1442/pun1442 --help
 
 This results in the following information.
 
