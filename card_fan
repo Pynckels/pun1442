@@ -1,0 +1,116 @@
+#! /usr/bin/env python3
+
+# Copyright 2025 Filip Pynckels
+# See README.md at https://github.com/Pynckels/pun1442
+
+# Acknowledgement
+# Leslie Murphy (https://github.com/LeslieMurphy) : For the idea and the proof of concept behind this program
+
+from pdf2image import convert_from_bytes
+from PIL       import Image, ImageDraw
+
+import numpy as np
+import sys
+
+#===============================================================================
+#= Start of the card visualization routine                                     =
+#===============================================================================
+
+def create_cards_image(images, offset_x=25, offset_y=130):
+    ''' Extract pages from a PDF, convert to transparent images, and fan them out. '''
+
+    height = max(image.height for image in images) + (len(images)-1) * offset_y # Calculate total height and width
+    width  = max(image.width  for image in images) + (len(images)-1) * offset_x
+
+    x = (len(images)-1) * offset_x                                              # Position of the first card
+    y = 0
+
+    imageFanned = Image.new('RGBA', (width, height), (255, 255, 255, 255))      # Create a white image to fan out the pages
+
+    for image in images[::-1]:
+        print(x, y)
+        imageFanned.paste(image, (x, y), mask=image.split()[3])
+        x = x - offset_x                                                        # Offset each image for fanned effect
+        y = y + offset_y
+
+    return imageFanned
+
+#===============================================================================
+#= End of the card visualization routine                                       =
+#===============================================================================
+
+def convert_to_transparent_images(images, white_threshold=240):
+    ''' Convert white pixels of all images to transparent pixels using NumPy for optimization. '''
+
+    images_trans = []
+
+    for image in images:
+        image_rgba = image.convert("RGBA")                                      # Convert to RGBA and then to a NumPy array (H, W, 4)
+        data = np.array(image_rgba)
+
+        r, g, b, a = data.T                                                     # Separate RGB and Alpha channels
+
+                                                                                # Create a boolean mask for "white-ish" pixels.
+                                                                                # Simultaneously for *all* pixels.
+        is_white = (r > white_threshold) & (g > white_threshold) & (b > white_threshold)
+
+                                                                                # Set the Alpha channel to 0 where the mask is True
+                                                                                # The 'a' array is directly modified
+        a[is_white] = 0
+
+        image_trans = Image.fromarray(data, 'RGBA')                             # Convert the modified NumPy array back to a PIL image
+        images_trans.append(image_trans)
+
+    return images_trans
+
+#-------------------------------------------------------------------------------
+
+def is_valid_pdf(pdf_bytes):
+    ''' Check if the given bytes represent a valid PDF file. '''
+
+    def check_line_start(data, prefix):
+        ''' Check if there is at least one occurrence of a line starting with the specified prefix.'''
+
+        lines = data.splitlines()                                               # Split the text into lines
+
+        for line in lines:                                                      # Check each line for the prefix
+            if line.strip().startswith(prefix):
+                return True
+
+        return False
+
+    pdf_headers = [                                                             # PDF specific header bytes
+                  b"%PDF-1.0", b"%PDF-1.1", b"%PDF-1.2", b"%PDF-1.3",
+                  b"%PDF-1.4", b"%PDF-1.5", b"%PDF-1.6", b"%PDF-1.7"
+                  ]
+
+    if not pdf_bytes:                                                           # Check basic conditions
+        return False
+
+    if not any(pdf_bytes.startswith(header) for header in pdf_headers):         # Check if the bytes start with a valid PDF header
+        return False
+
+    if not check_line_start(pdf_bytes, b"%% CARD - "):                          # Check if this is a punched card file
+        return False
+
+    return True
+
+#-------------------------------------------------------------------------------
+
+def main():
+    pdf_bytes = sys.stdin.buffer.read()                                         # Read pdf from stdin
+
+    if not is_valid_pdf(pdf_bytes):
+        print("Not a valid punch card file", file=sys.stderr)
+        sys.exit(1)
+
+    images = convert_from_bytes(pdf_bytes, dpi=600)                             # Convert pdf pages to images
+
+    images = convert_to_transparent_images(images)                              # Convert white in images to transparent
+    imageFanned = create_cards_image(images)                                    # Create image of the cards
+    imageFanned.save(sys.stdout.buffer, format='PNG')                           # Save the fanned image to stdout
+
+#-------------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    main()

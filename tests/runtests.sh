@@ -6,4 +6,6 @@
 ../pun1442 -y -c GREEN  -o testOut/test2_3.pdf testIn/test2.f77
 ../pun1442 -y -c PINK   -o testOut/test2_4.pdf testIn/test2.f77
 ../pun1442 -y -c YELLOW -o testOut/test2_5.pdf testIn/test2.f77
+../pun1442 -y -c RANDOM -o testOut/test2_6.pdf testIn/test2.f77
 (cat testIn/test1.txt; cat testIn/test2.f77) | ../pun1442 -o - - > testOut/test3.pdf
+../card_fan < testOut/test2_6.pdf > testOut/test2_6_fan.jpg

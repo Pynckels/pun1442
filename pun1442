@@ -12,6 +12,7 @@ from fpdf            import FPDF
 import argparse
 import base64
 import os
+import random
 import sys
 
 #------------------------------------------------------------------------------------------
@@ -27,6 +28,8 @@ BLUE         = PATH + '/cards/pun1442.card.blue.jpg'
 GREEN        = PATH + '/cards/pun1442.card.green.jpg'
 PINK         = PATH + '/cards/pun1442.card.pink.jpg'
 YELLOW       = PATH + '/cards/pun1442.card.gold.jpg'
+
+CARD_COLORS  = ['BEIGE', 'BLUE', 'GREEN', 'PINK', 'YELLOW']         # Necessary for random card color choice
 
 SIZE         =  [531, 243]                                          # 7⅜ inch x 3¼ inch, 80 columns, 12 lines
 
@@ -151,7 +154,13 @@ def pun1442_punch(
         text = line.decode('utf-8')                                 # Convert bytes to string
         text = text.rstrip()                                        # Strip trailing whitespace and '\n'
         cards.append(b'%% CARD - ' + base64.b64encode(text.encode('utf-8')))
-        pun1442_draw_card(pdf, text, card)
+
+        if card == 'RANDOM':                                        # Choose a random card color
+            color = globals()[ random.choice(CARD_COLORS) ]
+        else:                                                       # Choose the given card color
+            color = card
+
+        pun1442_draw_card(pdf, text, color)
 
     lines = bytes(pdf.output()).split(b'\n')                        # Get pdf as list of bytes strings
     lines[1:1] = cards                                              # Insert cards at position 1 (after first line)
@@ -210,11 +219,12 @@ def main():
 
     parser = argparse.ArgumentParser(description='Print a text file to PDF in IBM 1403 retro style')
 
-    parser.add_argument('infile',            metavar='<Input file>',  type=infile_validator,                                                   help='File to process or - for stdin.')
-    parser.add_argument('-c', '--color',                              choices=['BEIGE', 'BLUE', 'GREEN', 'PINK', 'YELLOW'],   default='BEIGE', help='Color of cards.')
-    parser.add_argument('-o', '--outfile',   metavar='<Output file>', type=str,                                     default='pun1442.pdf',     help='Output file name or - for stdout.')
-    parser.add_argument('-v', '--version',   action='version',        version='%(prog)s (version {version})'.format(version=__VERSION__),      help='Show program version and exit.')
-    parser.add_argument('-y', '--overwrite',                          action='store_true',                          default=False,             help='Overwrite output file.')
+    colorChoices = CARD_COLORS.copy().append('RANDOM')
+    parser.add_argument('infile',            metavar='<Input file>',  type=infile_validator,                                                                     help='File to process or - for stdin.')
+    parser.add_argument('-c', '--color',                              choices=['BEIGE', 'BLUE', 'GREEN', 'PINK', 'YELLOW', 'RANDOM'],     default='BEIGE',       help='Color of cards or a random color per card.')
+    parser.add_argument('-o', '--outfile',   metavar='<Output file>', type=str,                                                           default='pun1442.pdf', help='Output file name or - for stdout.')
+    parser.add_argument('-v', '--version',   action='version',        version='%(prog)s (version {version})'.format(version=__VERSION__),                        help='Show program version and exit.')
+    parser.add_argument('-y', '--overwrite',                          action='store_true',                                                default=False,         help='Overwrite output file.')
 
     args = parser.parse_args()
     args.outfile = outfile_validator(args.outfile, overwrite=args.overwrite)
@@ -229,10 +239,15 @@ def main():
     else:
         outFile = args.outfile
 
+    if args.color == 'RANDOM':                                      # In case random card color is choosen
+        card = 'RANDOM'
+    else:
+        card = globals()[args.color]
+
     pun1442_punch(                                                  # Hit the road...
-        inFile                          ,
-        outFile                         ,
-        card    = globals()[args.color]
+        inFile         ,
+        outFile        ,
+        card    = card
     )
 
     return
